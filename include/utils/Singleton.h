@@ -64,10 +64,10 @@ private:
  * for some unknown reason using the default ctor doesn't emit the variable!
  */
 
-#define ANDROID_SINGLETON_STATIC_INSTANCE(TYPE)                 \
-    template class Singleton< TYPE >;                           \
-    template<> Mutex Singleton< TYPE >::sLock(Mutex::PRIVATE);  \
-    template<> TYPE* Singleton< TYPE >::sInstance(0);
+#define ANDROID_SINGLETON_STATIC_INSTANCE(TYPE)                             \
+    template class ANDROID_API Singleton< TYPE >;                           \
+    template<> ANDROID_API Mutex Singleton< TYPE >::sLock(Mutex::PRIVATE);  \
+    template<> ANDROID_API TYPE* Singleton< TYPE >::sInstance(0);
 
 
 // ---------------------------------------------------------------------------
