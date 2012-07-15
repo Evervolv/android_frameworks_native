@@ -28,8 +28,12 @@
 #include <ui/ANativeObjectBase.h>
 #include <ui/Rect.h>
 
+#ifdef QCOM_HARDWARE
 #define MIN_NUM_FRAME_BUFFERS  2
 #define MAX_NUM_FRAME_BUFFERS  3
+#else
+#define NUM_FRAME_BUFFERS  2
+#endif
 
 extern "C" EGLNativeWindowType android_createDisplaySurface(void);
 
@@ -75,7 +79,11 @@ private:
     framebuffer_device_t* fbDev;
     alloc_device_t* grDev;
 
+#ifdef QCOM_HARDWARE
     sp<NativeBuffer> buffers[MAX_NUM_FRAME_BUFFERS];
+#else
+    sp<NativeBuffer> buffers[NUM_FRAME_BUFFERS];
+#endif
     sp<NativeBuffer> front;
     
     mutable Mutex mutex;

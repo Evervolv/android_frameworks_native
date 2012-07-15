@@ -92,6 +92,7 @@ FramebufferNativeWindow::FramebufferNativeWindow()
         mUpdateOnDemand = (fbDev->setUpdateRect != 0);
         
         // initialize the buffer FIFO
+#ifdef QCOM_HARDWARE
         if(fbDev->numFramebuffers >= MIN_NUM_FRAME_BUFFERS &&
            fbDev->numFramebuffers <= MAX_NUM_FRAME_BUFFERS){
             mNumBuffers = fbDev->numFramebuffers;
@@ -99,6 +100,10 @@ FramebufferNativeWindow::FramebufferNativeWindow()
             mNumBuffers = MIN_NUM_FRAME_BUFFERS;
         }
         mNumFreeBuffers = mNumBuffers;
+#else
+        mNumBuffers = NUM_FRAME_BUFFERS;
+        mNumFreeBuffers = NUM_FRAME_BUFFERS;
+#endif
         mBufferHead = mNumBuffers-1;
 
         /*
@@ -159,11 +164,18 @@ FramebufferNativeWindow::FramebufferNativeWindow()
 FramebufferNativeWindow::~FramebufferNativeWindow() 
 {
     if (grDev) {
+#ifdef QCOM_HARDWARE
         for(int i = 0; i < mNumBuffers; i++) {
             if (buffers[i] != NULL) {
                 grDev->free(grDev, buffers[i]->handle);
             }
         }
+#else
+        if (buffers[0] != NULL)
+            grDev->free(grDev, buffers[0]->handle);
+        if (buffers[1] != NULL)
+            grDev->free(grDev, buffers[1]->handle);
+#endif
         gralloc_close(grDev);
     }
 
