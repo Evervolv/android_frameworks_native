@@ -536,6 +536,11 @@ void SurfaceTexture::setFilteringEnabled(bool enabled) {
 void SurfaceTexture::computeCurrentTransformMatrix() {
     ST_LOGV("computeCurrentTransformMatrix");
 
+    // HACK - skip when buf is null
+    if (mCurrentTextureBuf == NULL) {
+        return;
+    }
+
     float xform[16];
     for (int i = 0; i < 16; i++) {
         xform[i] = mtxIdentity[i];
