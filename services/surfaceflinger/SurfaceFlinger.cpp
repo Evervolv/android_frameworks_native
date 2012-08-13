@@ -67,6 +67,10 @@
 #include <private/gui/SharedBufferStack.h>
 #include <gui/BitTube.h>
 
+#ifdef QCOM_HARDWARE
+#include <clear_regions.h>
+#endif
+
 #define EGL_VERSION_HW_ANDROID  0x3143
 
 #define DISPLAY_COUNT       1
@@ -969,6 +973,14 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
                 // render the layer
                 layer->draw(clip);
             }
+        }
+    } else if (cur && !mWormholeRegion.isEmpty()) {
+            const Region region(mWormholeRegion.intersect(mDirtyRegion));
+            if (!region.isEmpty()) {
+#ifdef QCOM_HARDWARE
+               if (0 != qdutils::qcomuiClearRegion(region, hw.getEGLDisplay()))
+#endif
+                      drawWormhole();
         }
     }
 }
