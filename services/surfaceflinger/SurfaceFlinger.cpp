@@ -59,6 +59,9 @@
 #include "LayerDim.h"
 #include "LayerScreenshot.h"
 #include "SurfaceFlinger.h"
+#ifdef QCOM_HARDWARE
+#include "qcom_ui.h"
+#endif
 
 #include "DisplayHardware/DisplayHardware.h"
 #include "DisplayHardware/HWComposer.h"
@@ -66,10 +69,6 @@
 #include <private/android_filesystem_config.h>
 #include <private/gui/SharedBufferStack.h>
 #include <gui/BitTube.h>
-
-#ifdef QCOM_HARDWARE
-#include <clear_regions.h>
-#endif
 
 #define EGL_VERSION_HW_ANDROID  0x3143
 
@@ -940,13 +939,24 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
             // remove where there are opaque FB layers. however, on some
             // GPUs doing a "clean slate" glClear might be more efficient.
             // We'll revisit later if needed.
-            glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
+             const Region region(hw.bounds());
+#ifdef QCOM_HARDWARE
+             if (0 != qdutils::CBUtils::qcomuiClearRegion(region,
+                                              hw.getEGLDisplay()))
+#endif
+             {
+                 glClearColor(0, 0, 0, 0);
+                 glClear(GL_COLOR_BUFFER_BIT);
+             }
         } else {
             // screen is already cleared here
             if (!mWormholeRegion.isEmpty()) {
                 // can happen with SurfaceView
-                drawWormhole();
+#ifdef QCOM_HARDWARE
+                if (0 != qdutils::CBUtils::qcomuiClearRegion(mWormholeRegion,
+                                            hw.getEGLDisplay()))
+#endif
+                    drawWormhole();
             }
         }
 
@@ -966,10 +976,19 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
                             && layer->isOpaque()) {
                         // never clear the very first layer since we're
                         // guaranteed the FB is already cleared
+#ifdef QCOM_HARDWARE
+                        if (0 != qdutils::CBUtils::qcomuiClearRegion(clip,
+                                                           hw.getEGLDisplay()))
+#endif
                         layer->clearWithOpenGL(clip);
                     }
                     continue;
                 }
+#ifdef QCOM_HARDWARE
+                if (cur && (cur[i].compositionType != HWC_FRAMEBUFFER))
+                    continue;
+#endif
+
                 // render the layer
                 layer->draw(clip);
             }
@@ -978,7 +997,8 @@ void SurfaceFlinger::composeSurfaces(const Region& dirty)
             const Region region(mWormholeRegion.intersect(mDirtyRegion));
             if (!region.isEmpty()) {
 #ifdef QCOM_HARDWARE
-               if (0 != qdutils::qcomuiClearRegion(region, hw.getEGLDisplay()))
+                if (0 != qdutils::CBUtils::qcomuiClearRegion(region,
+                                            hw.getEGLDisplay()))
 #endif
                       drawWormhole();
         }
