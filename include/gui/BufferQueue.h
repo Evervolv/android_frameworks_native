@@ -34,7 +34,7 @@ namespace android {
 
 class BufferQueue : public BnSurfaceTexture {
 public:
-#if defined(QCOM_HARDWARE) && !defined(TARGET_DISABLE_TRIPLE_BUFFERING)
+#ifdef QCOM_HARDWARE
     enum { MIN_UNDEQUEUED_BUFFERS = 3 };
 #else
     enum { MIN_UNDEQUEUED_BUFFERS = 2 };
