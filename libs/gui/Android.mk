@@ -51,6 +51,10 @@ ifeq ($(TARGET_BOARD_PLATFORM), tegra)
 	LOCAL_CFLAGS += -DALLOW_DEQUEUE_CURRENT_BUFFER
 endif
 
+ifeq ($(TARGET_DISABLE_TRIPLE_BUFFERING), true)
+	LOCAL_CFLAGS += -DTARGET_DISABLE_TRIPLE_BUFFERING
+endif
+
 ifeq ($(BOARD_USES_QCOM_HARDWARE), true)
     LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc
     LOCAL_C_INCLUDES += hardware/qcom/display/libqdutils
