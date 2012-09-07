@@ -554,7 +554,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
             // Currently unused: const uint32_t flags = mCurrentState.orientationFlags;
             GraphicPlane& plane(graphicPlane(dpy));
             plane.setOrientation(orientation);
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
             const Transform& planeTransform(plane.transform());
 #endif
             // update the shared control block
@@ -566,7 +566,7 @@ void SurfaceFlinger::handleTransactionLocked(uint32_t transactionFlags)
 
             mVisibleRegionsDirty = true;
             mDirtyRegion.set(hw.bounds());
-#ifdef QCOMHW
+#ifdef QCOM_HARDWARE
             //set the new orientation to HWC
             HWComposer& hwc(graphicPlane(0).displayHardware().getHwComposer());
             hwc.eventControl(DisplayHardware::EVENT_ORIENTATION,
