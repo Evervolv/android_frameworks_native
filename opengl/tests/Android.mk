@@ -41,4 +41,4 @@ dirs += \
 
 endif # JAVA_SUPPORT platform
 
-include $(call all-named-subdir-makefiles, $(dirs))
+#include $(call all-named-subdir-makefiles, $(dirs))
