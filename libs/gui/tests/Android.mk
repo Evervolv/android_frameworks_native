@@ -32,13 +32,13 @@ LOCAL_C_INCLUDES := \
 
 # Build the binary to $(TARGET_OUT_DATA_NATIVE_TESTS)/$(LOCAL_MODULE)
 # to integrate with auto-test framework.
-include $(BUILD_NATIVE_TEST)
+#include $(BUILD_NATIVE_TEST)
 
 # Include subdirectory makefiles
 # ============================================================
 
 # If we're building with ONE_SHOT_MAKEFILE (mm, mmm), then what the framework
 # team really wants is to build the stuff defined by this makefile.
-ifeq (,$(ONE_SHOT_MAKEFILE))
-include $(call first-makefiles-under,$(LOCAL_PATH))
-endif
+#ifeq (,$(ONE_SHOT_MAKEFILE))
+#include $(call first-makefiles-under,$(LOCAL_PATH))
+#endif
