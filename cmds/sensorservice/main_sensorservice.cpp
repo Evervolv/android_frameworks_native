@@ -17,9 +17,17 @@
 #include <binder/BinderService.h>
 #include <SensorService.h>
 
+#include <unistd.h>
+
 using namespace android;
 
 int main(int argc, char** argv) {
+    /* Sleep for 2 seconds to avoid race condition with hardware
+     * specific services that export sensors, such as done with
+     * nexus 4 (we end up starting the service by hand, at android
+     * it's started later during the boot, by the other services) */
+    sleep(2);
+
     SensorService::publishAndJoinThreadPool();
     return 0;
 }
