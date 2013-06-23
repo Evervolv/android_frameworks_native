@@ -612,9 +612,6 @@ status_t HWComposer::prepare() {
                     }
                     // If the composition type is BLIT, we set this to
                     // trigger a FLIP
-                    if(l.compositionType == HWC_BLIT) {
-                        disp.hasFbComp = true;
-                    }
                     if (l.compositionType == HWC_OVERLAY) {
                         disp.hasOvComp = true;
                     }
