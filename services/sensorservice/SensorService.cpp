@@ -549,9 +549,8 @@ status_t SensorService::disable(const sp<SensorEventConnection>& connection,
 {
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
-
     Mutex::Autolock _l(mLock);
-    status_t err = cleanupWithoutDisableLocked(connection, handle);
+    status_t err = cleanupWithoutDisable(connection, handle);
     if (err == NO_ERROR) {
         SensorInterface* sensor = mSensorMap.valueFor(handle);
         err = sensor ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
@@ -565,8 +564,8 @@ status_t SensorService::cleanupWithoutDisable(
     return cleanupWithoutDisableLocked(connection, handle);
 }
 
-status_t SensorService::cleanupWithoutDisableLocked(
-        const sp<SensorEventConnection>& connection, int handle) {
+status_t SensorService::cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
+        int handle) {
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec) {
         // see if this connection becomes inactive
