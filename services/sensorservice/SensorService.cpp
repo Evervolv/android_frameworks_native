@@ -270,8 +270,10 @@ void SensorService::cleanupAutoDisabledSensor(const sp<SensorEventConnection>& c
         if (getSensorType(handle) == SENSOR_TYPE_SIGNIFICANT_MOTION) {
             if (connection->hasSensor(handle)) {
                 sensor = mSensorMap.valueFor(handle);
-                if (sensor != NULL) {
-                    sensor->autoDisable(connection.get(), handle);
+                err = sensor ?sensor->resetStateWithoutActuatingHardware(connection.get(), handle)
+                        : status_t(BAD_VALUE);
+                if (err != NO_ERROR) {
+                    ALOGE("Sensor Inteface: Resetting state failed with err: %d", err);
                 }
                 cleanupWithoutDisable(connection, handle);
             }
@@ -521,12 +523,8 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
     if (mInitCheck != NO_ERROR)
         return mInitCheck;
 
-    SensorInterface* sensor = mSensorMap.valueFor(handle);
-    if (sensor == NULL) {
-        return BAD_VALUE;
-    }
-
     Mutex::Autolock _l(mLock);
+    SensorInterface* sensor = mSensorMap.valueFor(handle);
     SensorRecord* rec = mActiveSensors.valueFor(handle);
     if (rec == 0) {
         rec = new SensorRecord(connection);
@@ -562,11 +560,16 @@ status_t SensorService::enable(const sp<SensorEventConnection>& connection,
             handle, connection.get());
     }
 
+
     // we are setup, now enable the sensor.
-    status_t err = sensor->activate(connection.get(), true);
+    status_t err = sensor ? sensor->activate(connection.get(), true) : status_t(BAD_VALUE);
+
     if (err != NO_ERROR) {
+        // enable has failed, reset state in SensorDevice.
+        status_t resetErr = sensor ? sensor->resetStateWithoutActuatingHardware(connection.get(),
+                handle) : status_t(BAD_VALUE);
         // enable has failed, reset our state.
-        cleanupWithoutDisableLocked(connection, handle);
+        cleanupWithoutDisable(connection, handle);
     }
     return err;
 }
@@ -583,12 +586,6 @@ status_t SensorService::disable(const sp<SensorEventConnection>& connection,
         err = sensor ? sensor->activate(connection.get(), false) : status_t(BAD_VALUE);
     }
     return err;
-}
-
-status_t SensorService::cleanupWithoutDisable(
-        const sp<SensorEventConnection>& connection, int handle) {
-    Mutex::Autolock _l(mLock);
-    return cleanupWithoutDisableLocked(connection, handle);
 }
 
 status_t SensorService::cleanupWithoutDisable(const sp<SensorEventConnection>& connection,
