@@ -39,6 +39,12 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	liblog
 
+ifeq ($(BOARD_EGL_NEEDS_LEGACY_FB),true)
+    LOCAL_CFLAGS += -DBOARD_EGL_NEEDS_LEGACY_FB
+    ifneq ($(TARGET_BOARD_PLATFORM),exynos4)
+        LOCAL_CFLAGS += -DSURFACE_SKIP_FIRST_DEQUEUE
+    endif
+endif
 
 LOCAL_MODULE:= libgui
 
