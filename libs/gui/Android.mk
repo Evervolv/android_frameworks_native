@@ -46,10 +46,6 @@ ifeq ($(BOARD_EGL_NEEDS_LEGACY_FB),true)
     endif
 endif
 
-ifeq ($(BOARD_EGL_NEEDS_LEGACY_FB),true)
-    LOCAL_CFLAGS += -DBOARD_EGL_NEEDS_LEGACY_FB
-endif
-
 LOCAL_MODULE:= libgui
 
 ifeq ($(TARGET_BOARD_PLATFORM), tegra)
