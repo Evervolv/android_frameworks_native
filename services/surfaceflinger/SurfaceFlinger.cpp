@@ -700,6 +700,9 @@ status_t SurfaceFlinger::getDisplayInfo(const sp<IBinder>& display, DisplayInfo*
         static int getEmuDensity() {
             return getDensityFromProperty("qemu.sf.lcd_density"); }
         static int getBuildDensity()  {
+            // Check for faked density
+            int density = getDensityFromProperty("persist.sys.fake_density");
+            if (density > 0) return density;
             return getDensityFromProperty("ro.sf.lcd_density"); }
     };
 
