@@ -45,6 +45,9 @@
 #include "DisplayHardware/HWComposer.h"
 
 #include "RenderEngine/RenderEngine.h"
+#ifdef QCOM_BSP
+#include <gralloc_priv.h>
+#endif
 
 #define DEBUG_RESIZE    0
 
@@ -65,6 +68,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         mDebug(false),
         mFormat(PIXEL_FORMAT_NONE),
         mOpaqueLayer(true),
+        mNeedsDithering(false),
         mTransactionFlags(0),
         mQueuedFrames(0),
         mCurrentTransform(0),
@@ -195,6 +199,12 @@ status_t Layer::setBuffers( uint32_t w, uint32_t h,
     mSurfaceFlingerConsumer->setDefaultBufferSize(w, h);
     mSurfaceFlingerConsumer->setDefaultBufferFormat(format);
     mSurfaceFlingerConsumer->setConsumerUsageBits(getEffectiveUsage(0));
+
+    if (mFlinger->getUseDithering()) {
+        int displayMinColorDepth = mFlinger->getMinColorDepth();
+        int layerMinColorDepth = minColorDepth(format);
+        mNeedsDithering = (layerMinColorDepth > displayMinColorDepth);
+    }
 
     return NO_ERROR;
 }
@@ -364,6 +374,15 @@ void Layer::setGeometry(
     frame.intersect(hw->getViewport(), &frame);
     const Transform& tr(hw->getTransform());
     layer.setFrame(tr.transform(frame));
+#ifdef QCOM_BSP
+    // set dest_rect to frame buffer width and height, if external_only flag
+    // for the layer is enabled.
+    if(isExtOnly()) {
+        uint32_t w = hw->getWidth();
+        uint32_t h = hw->getHeight();
+        layer.setFrame(Rect(w,h));
+    }
+#endif
     layer.setCrop(computeCrop(hw));
     layer.setPlaneAlpha(s.alpha);
 
@@ -425,7 +444,8 @@ void Layer::setAcquireFence(const sp<const DisplayDevice>& hw,
     // TODO: there is a possible optimization here: we only need to set the
     // acquire fence the first time a new buffer is acquired on EACH display.
 
-    if (layer.getCompositionType() == HWC_OVERLAY) {
+    if (layer.getCompositionType() == HWC_OVERLAY ||
+            layer.getCompositionType() == HWC_BLIT) {
         sp<Fence> fence = mSurfaceFlingerConsumer->getCurrentFence();
         if (fence->isValid()) {
             fenceFd = fence->dup();
@@ -490,11 +510,22 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         // is probably going to have something visibly wrong.
     }
 
+    bool canAllowGPU = false;
+#ifdef QCOM_BSP
+    if(isProtected()) {
+        char property[PROPERTY_VALUE_MAX];
+        if ((property_get("persist.gralloc.cp.level3", property, NULL) > 0) &&
+                (atoi(property) == 1)) {
+            canAllowGPU = true;
+        }
+    }
+#endif
+
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
     RenderEngine& engine(mFlinger->getRenderEngine());
 
-    if (!blackOutLayer) {
+    if (!blackOutLayer || (canAllowGPU)) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
 
@@ -550,6 +581,7 @@ void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& cli
 {
     RenderEngine& engine(mFlinger->getRenderEngine());
     computeGeometry(hw, mMesh);
+    engine.setDither(false);
     engine.setupFillWithColor(red, green, blue, alpha);
     engine.drawMesh(mMesh);
 }
@@ -596,6 +628,7 @@ void Layer::drawWithOpenGL(
     texCoords[3] = vec2(right, 1.0f - top);
 
     RenderEngine& engine(mFlinger->getRenderEngine());
+    engine.setDither(needsDithering());
     engine.setupLayerBlending(mPremultipliedAlpha, isOpaque(), s.alpha);
     engine.drawMesh(mMesh);
     engine.disableBlending();
@@ -1238,6 +1271,41 @@ Layer::LayerCleaner::~LayerCleaner() {
     mFlinger->onLayerDestroyed(mLayer);
 }
 
+#ifdef QCOM_BSP
+bool Layer::isExtOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_EXTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+
+bool Layer::isIntOnly() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_INTERNAL_ONLY)
+            return true;
+    }
+    return false;
+}
+
+bool Layer::isSecureDisplay() const
+{
+    const sp<GraphicBuffer>& activeBuffer(mActiveBuffer);
+    if (activeBuffer != 0) {
+        uint32_t usage = activeBuffer->getUsage();
+        if(usage & GRALLOC_USAGE_PRIVATE_SECURE_DISPLAY)
+            return true;
+    }
+    return false;
+}
+
+#endif
 // ---------------------------------------------------------------------------
 }; // namespace android
 

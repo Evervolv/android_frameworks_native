@@ -100,7 +100,8 @@ public:
     void run() ANDROID_API;
 
     enum {
-        EVENT_VSYNC = HWC_EVENT_VSYNC
+        EVENT_VSYNC = HWC_EVENT_VSYNC,
+        EVENT_ORIENTATION = HWC_EVENT_ORIENTATION
     };
 
     // post an asynchronous message to the main thread
@@ -207,6 +208,11 @@ private:
             const sp<IGraphicBufferProducer>& producer,
             uint32_t reqWidth, uint32_t reqHeight,
             uint32_t minLayerZ, uint32_t maxLayerZ, bool isCpuConsumer);
+#ifdef USE_MHEAP_SCREENSHOT
+    virtual status_t captureScreen(const sp<IBinder>& display, sp<IMemoryHeap>* heap,
+        uint32_t* width, uint32_t* height, uint32_t reqWidth,
+        uint32_t reqHeight, uint32_t minLayerZ, uint32_t maxLayerZ);
+#endif
     // called when screen needs to turn off
     virtual void blank(const sp<IBinder>& display);
     // called when screen is turning back on
@@ -250,6 +256,10 @@ private:
 
     void handleTransaction(uint32_t transactionFlags);
     void handleTransactionLocked(uint32_t transactionFlags);
+
+    // Read virtual display properties
+    void setVirtualDisplayData( int32_t hwcDisplayId,
+                                const sp<IGraphicBufferProducer>& sink);
 
     /* handlePageFilp: this is were we latch a new buffer
      * if available and compute the dirty region.
@@ -319,6 +329,14 @@ private:
             uint32_t minLayerZ, uint32_t maxLayerZ,
             bool useReadPixels);
 
+#ifdef USE_MHEAP_SCREENSHOT
+    status_t captureScreenImplCpuConsumerLocked(
+            const sp<const DisplayDevice>& hw,
+            sp<IMemoryHeap>* heap, uint32_t* width, uint32_t* height,
+            uint32_t reqWidth, uint32_t reqHeight,
+            uint32_t minLayerZ, uint32_t maxLayerZ);
+#endif
+
     /* ------------------------------------------------------------------------
      * EGL
      */
@@ -328,6 +346,9 @@ private:
         EGLint renderableType, EGLConfig* config);
     size_t getMaxTextureSize() const;
     size_t getMaxViewportDims() const;
+
+    uint32_t getMinColorDepth() const { return mMinColorDepth; }
+    inline bool getUseDithering() const { return mUseDithering; }
 
     /* ------------------------------------------------------------------------
      * Display and layer stack management
@@ -365,7 +386,7 @@ private:
      * Compositing
      */
     void invalidateHwcGeometry();
-    static void computeVisibleRegions(
+    static void computeVisibleRegions(size_t dpy,
             const LayerVector& currentLayers, uint32_t layerStack,
             Region& dirtyRegion, Region& opaqueRegion);
 
@@ -435,6 +456,7 @@ private:
     sp<EventThread> mEventThread;
     sp<EventThread> mSFEventThread;
     sp<EventControlThread> mEventControlThread;
+    uint32_t mMinColorDepth;
     EGLContext mEGLContext;
     EGLConfig mEGLConfig;
     EGLDisplay mEGLDisplay;
@@ -462,6 +484,7 @@ private:
     volatile nsecs_t mDebugInTransaction;
     nsecs_t mLastTransactionTime;
     bool mBootFinished;
+    bool mUseDithering;
 
     // these are thread safe
     mutable MessageQueue mEventQueue;
