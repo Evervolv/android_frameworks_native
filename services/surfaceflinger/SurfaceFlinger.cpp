@@ -1950,9 +1950,11 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
                         layer->draw(hw, clip);
                         break;
                     }
+#ifdef QCOM_BSP
                     case HWC_BLIT:
                         //Do nothing
                         break;
+#endif
                     case HWC_FRAMEBUFFER_TARGET: {
                         // this should not happen as the iterator shouldn't
                         // let us get there.
