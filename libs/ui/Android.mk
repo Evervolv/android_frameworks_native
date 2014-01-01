@@ -60,11 +60,6 @@ ifeq ($(BOARD_HAVE_PIXEL_FORMAT_INFO),true)
 LOCAL_CFLAGS += -DHAVE_PIXEL_FORMAT_INFO
 endif
 
-# Executed only on QCOM BSPs
-ifeq ($(TARGET_USES_QCOM_BSP),true)
-    LOCAL_CFLAGS += -DQCOM_BSP
-endif
-
 LOCAL_MODULE:= libui
 
 include $(BUILD_SHARED_LIBRARY)
