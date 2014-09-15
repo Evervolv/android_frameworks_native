@@ -25,6 +25,7 @@
 #include <gui/BufferQueueCore.h>
 #include <gui/IConsumerListener.h>
 #include <gui/IProducerListener.h>
+#include <cutils/properties.h>
 
 namespace android {
 
@@ -81,6 +82,18 @@ status_t BufferQueueConsumer::acquireBuffer(BufferItem* outBuffer,
             // on time or possibly late if we show it as soon as possible -- we
             // acquire and return it. If we don't want to display it until after the
             // expectedPresent time, we return PRESENT_LATER without acquiring it.
+#ifdef QCOM_BSP
+        char property[PROPERTY_VALUE_MAX];
+        if (property_get("ro.sf.default_app_buffer", property, NULL) > 0) {
+           if (!mCore->mQueue[0].mIsAutoTimestamp && mCore->mDefaultMaxBufferCount < 3) {
+              const BufferItem& bufferItem(mCore->mQueue[0]);
+              nsecs_t desiredPresent = bufferItem.mTimestamp;
+              if ( desiredPresent < expectedPresent)
+                  mCore->mDefaultMaxBufferCount = 3;
+           }
+        }
+#endif
+
             //
             // To be safe, we don't defer acquisition if expectedPresent is more
             // than one second in the future beyond the desired present time
