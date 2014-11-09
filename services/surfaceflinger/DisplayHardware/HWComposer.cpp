@@ -1027,6 +1027,7 @@ public:
         getLayer()->sidebandStream = stream->handle();
     }
 
+#ifdef QCOM_BSP
     virtual void setDirtyRect(const Rect& dirtyRect) {
         Rect srcCrop;
         srcCrop.left = int(ceilf(getLayer()->sourceCropf.left));
@@ -1041,6 +1042,7 @@ public:
         srcCrop.intersect(dirtyRect, &finalDR);
         getLayer()->dirtyRect = reinterpret_cast<hwc_rect_t const&>(finalDR);
     }
+#endif
 
     virtual void setBuffer(const sp<GraphicBuffer>& buffer) {
         if (buffer == 0 || buffer->handle == 0) {
