@@ -114,6 +114,13 @@ LOCAL_SHARED_LIBRARIES := \
 	libgui \
 	libpowermanager
 
+ifeq ($(TARGET_USES_QCOM_BSP), true)
+    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/$(TARGET_BOARD_PLATFORM)/libgralloc
+    LOCAL_C_INCLUDES += $(call project-path-for,qcom-display)/$(TARGET_BOARD_PLATFORM)/libqdutils
+    LOCAL_SHARED_LIBRARIES += libqdutils
+    LOCAL_CFLAGS += -DQCOM_BSP
+endif
+
 LOCAL_MODULE:= libsurfaceflinger
 
 include $(BUILD_SHARED_LIBRARY)
