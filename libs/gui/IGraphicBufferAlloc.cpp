@@ -52,13 +52,19 @@ public:
             status_t* error) {
         Parcel data, reply;
         data.writeInterfaceToken(IGraphicBufferAlloc::getInterfaceDescriptor());
+
         data.writeUint32(width);
         data.writeUint32(height);
         data.writeInt32(static_cast<int32_t>(format));
         data.writeUint32(usage);
-        remote()->transact(CREATE_GRAPHIC_BUFFER, data, &reply);
+        status_t result = remote()->transact(CREATE_GRAPHIC_BUFFER, data, &reply);
+        if(result != NO_ERROR){
+            *error = result;
+            return NULL;
+        }
+
         sp<GraphicBuffer> graphicBuffer;
-        status_t result = reply.readInt32();
+        result = reply.readInt32();
         if (result == NO_ERROR) {
             graphicBuffer = new GraphicBuffer();
             result = reply.read(*graphicBuffer);
