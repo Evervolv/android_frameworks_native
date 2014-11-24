@@ -3684,6 +3684,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(
                         }
                         if (sync != EGL_NO_SYNC_KHR) {
                             // get the sync fd
+                            getRenderEngine().flush();
                             syncFd = eglDupNativeFenceFDANDROID(mEGLDisplay, sync);
                             if (syncFd == EGL_NO_NATIVE_FENCE_FD_ANDROID) {
                                 ALOGW("captureScreen: failed to dup sync khr object");
