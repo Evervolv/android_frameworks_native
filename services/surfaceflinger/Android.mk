@@ -36,7 +36,6 @@ LOCAL_SRC_FILES:= \
     RenderEngine/GLES11RenderEngine.cpp \
     RenderEngine/GLES20RenderEngine.cpp
 
-
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 
@@ -112,6 +111,13 @@ ifeq ($(TARGET_USES_QCOM_BSP), true)
 ifeq ($(TARGET_USES_QCOM_BSP_LEGACY),true)
     LOCAL_CFLAGS += -DQCOM_BSP_LEGACY
 endif
+endif
+
+ifeq ($(TARGET_HAVE_UI_BLUR),true)
+    LOCAL_SRC_FILES += LayerBlur.cpp
+    LOCAL_CFLAGS += -DWITH_UIBLUR
+    LOCAL_SHARED_LIBRARIES += libuiblur
+    LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/ui
 endif
 
 LOCAL_MODULE:= libsurfaceflinger
