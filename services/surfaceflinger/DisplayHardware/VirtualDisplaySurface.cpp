@@ -152,7 +152,7 @@ status_t VirtualDisplaySurface::prepareFrame(CompositionType compositionType) {
         // format/usage and get a new buffer when the GLES driver calls
         // dequeueBuffer().
         mOutputFormat = mDefaultOutputFormat;
-        setOutputUsage(GRALLOC_USAGE_HW_COMPOSER);
+        mOutputUsage = GRALLOC_USAGE_HW_COMPOSER;
         refreshOutputBuffer();
     }
 
@@ -377,7 +377,7 @@ status_t VirtualDisplaySurface::dequeueBuffer(int* pslot, sp<Fence>* fence, bool
                     mSinkBufferWidth, mSinkBufferHeight,
                     buf->getPixelFormat(), buf->getUsage());
             mOutputFormat = format;
-            setOutputUsage(usage);
+            mOutputUsage = usage;
             result = refreshOutputBuffer();
             if (result < 0)
                 return result;
@@ -614,10 +614,6 @@ const char* VirtualDisplaySurface::dbgSourceStr(Source s) {
         case SOURCE_SCRATCH: return "SCRATCH";
         default:             return "INVALID";
     }
-}
-
-void VirtualDisplaySurface::setOutputUsage(uint32_t usage) {
-    mOutputUsage = usage;
 }
 
 // ---------------------------------------------------------------------------
