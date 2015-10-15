@@ -694,7 +694,16 @@ EGLSurface eglCreateWindowSurface(  EGLDisplay dpy, EGLConfig config,
         }
 
         EGLint format;
+#if WORKAROUND_BUG_10194508
+        if (!cnx->egl.eglGetConfigAttrib(iDpy, config, EGL_NATIVE_VISUAL_ID,
+                &format)) {
+            ALOGE("eglGetConfigAttrib(EGL_NATIVE_VISUAL_ID) failed: %#x",
+                    eglGetError());
+            format = 0;
+        }
+#else
         getNativePixelFormat(iDpy, cnx, config, format);
+#endif
 
         // now select correct colorspace and dataspace based on user's attribute list
         EGLint colorSpace;

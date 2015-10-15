@@ -137,6 +137,13 @@ cc_library_shared {
     static_libs: ["libEGL_getProcAddress"],
     ldflags: ["-Wl,--exclude-libs=ALL"],
     export_include_dirs: ["EGL/include"],
+    product_variables: {
+        evervolv: {
+            needs_egl_khr_workaround: {
+                cflags: ["-DWORKAROUND_BUG_10194508=1"],
+            },
+        }
+    },
 }
 
 cc_test {
