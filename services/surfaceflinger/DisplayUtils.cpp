@@ -174,8 +174,14 @@ bool DisplayUtils::canAllocateHwcDisplayIdForVDS(int usage) {
     int allowHwcForVDS = atoi(value);
 
 #ifdef QTI_BSP
+#ifdef FORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS
     // Do not allow hardware acceleration
     flag_mask = GRALLOC_USAGE_PRIVATE_WFD;
+#else
+    // Don't allocate HWC display unless we force HWC copy, otherwise
+    // incompatible buffers are sent to the media stack
+    flag_mask = 0;
+#endif
 #endif
 
     return ((mHasWbNode) && (!allowHwcForVDS) && (usage & flag_mask));
