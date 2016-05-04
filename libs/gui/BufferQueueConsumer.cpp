@@ -31,6 +31,10 @@
 #include <binder/PermissionCache.h>
 #include <private/android_filesystem_config.h>
 
+#include <binder/IPCThreadState.h>
+#include <binder/PermissionCache.h>
+#include <private/android_filesystem_config.h>
+
 namespace android {
 
 BufferQueueConsumer::BufferQueueConsumer(const sp<BufferQueueCore>& core) :
