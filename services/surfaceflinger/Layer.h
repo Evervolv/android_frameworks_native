@@ -73,7 +73,9 @@ class Layer : public SurfaceFlingerConsumer::ContentsChangedListener {
     static int32_t sSequence;
 
 public:
+#ifdef QTI_BSP
     friend class ExLayer;
+#endif
     mutable bool contentDirty;
     // regions below are in window-manager space
     Region visibleRegion;
@@ -349,6 +351,7 @@ public:
     /* ------------------------------------------------------------------------
      * Extensions
      */
+#ifndef USE_HWC2
     virtual bool isExtOnly() const { return false; }
     virtual bool isIntOnly() const { return false; }
     virtual bool isSecureDisplay() const { return false; }
@@ -358,6 +361,7 @@ public:
                              const State& /*state*/) { }
     virtual void setAcquiredFenceIfBlit(int& /*fenceFd */,
                        HWComposer::HWCLayerInterface& /*layer */) { }
+#endif
     virtual bool canAllowGPUForProtected() const { return false; }
 
 
