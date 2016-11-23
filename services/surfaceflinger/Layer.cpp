@@ -544,7 +544,7 @@ void Layer::setGeometry(
                 " %s (%d)", mName.string(), to_string(blendMode).c_str(),
                 to_string(error).c_str(), static_cast<int32_t>(error));
     }
-#elif defined(QTI_BSP) && !defined(QCOM_BSP_LEGACY)
+#else
     if (!isOpaque(s)) {
         layer.setBlending(mPremultipliedAlpha ?
                 HWC_BLENDING_PREMULT :
@@ -733,13 +733,6 @@ void Layer::setPerFrameData(const sp<const DisplayDevice>& displayDevice) {
             (mActiveBuffer != nullptr && mActiveBuffer->handle == nullptr)) {
         ALOGV("[%s] Requesting Client composition", mName.string());
         setCompositionType(hwcId, HWC2::Composition::Client);
-#ifndef USE_HWC2
-        error = hwcLayer->setBuffer(nullptr, Fence::NO_FENCE);
-        if (error != HWC2::Error::None) {
-            ALOGE("[%s] Failed to set null buffer: %s (%d)", mName.string(),
-                    to_string(error).c_str(), static_cast<int32_t>(error));
-        }
-#endif
         return;
     }
 
