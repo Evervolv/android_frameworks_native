@@ -465,7 +465,7 @@ void SurfaceFlinger::init() {
 
     // set SFEventThread to SCHED_FIFO to minimize jitter
     struct sched_param param = {0};
-    param.sched_priority = 1;
+    param.sched_priority = 2;
 
     // start the EventThread
     if (vsyncPhaseOffsetNs != sfVsyncPhaseOffsetNs) {
