@@ -55,6 +55,7 @@
 
 #define DEBUG_RESIZE    0
 
+#define MAX_POSITION 32767
 namespace android {
 
 // ---------------------------------------------------------------------------
@@ -1574,6 +1575,10 @@ uint32_t Layer::setTransactionFlags(uint32_t flags) {
 bool Layer::setPosition(float x, float y, bool immediate) {
     if (mCurrentState.requested.transform.tx() == x && mCurrentState.requested.transform.ty() == y)
         return false;
+    if ((y > MAX_POSITION) || (x > MAX_POSITION)) {
+        ALOGE("%s:: failed %s  x = %f y = %f",__FUNCTION__,mName.string(),x, y);
+        return false;
+    }
     mCurrentState.sequence++;
 
     // We update the requested and active position simultaneously because
