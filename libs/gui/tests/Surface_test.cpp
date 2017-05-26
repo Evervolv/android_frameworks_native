@@ -98,7 +98,7 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
     sp<ISurfaceComposer> sf(ComposerService::getComposerService());
     sp<IBinder> display(sf->getBuiltInDisplay(ISurfaceComposer::eDisplayIdMain));
     ASSERT_EQ(NO_ERROR, sf->captureScreen(display, producer, Rect(),
-            64, 64, 0, 0x7fffffff, false, ISurfaceComposer::eRotateNone, false));
+            64, 64, 0, 0x7fffffff, false));
 
     ASSERT_EQ(NO_ERROR, native_window_api_connect(anw.get(),
             NATIVE_WINDOW_API_CPU));
@@ -129,7 +129,7 @@ TEST_F(SurfaceTest, ScreenshotsOfProtectedBuffersSucceed) {
         ASSERT_EQ(NO_ERROR, anw->queueBuffer(anw.get(), buf, -1));
     }
     ASSERT_EQ(NO_ERROR, sf->captureScreen(display, producer, Rect(),
-            64, 64, 0, 0x7fffffff, false, ISurfaceComposer::eRotateNone, false));
+            64, 64, 0, 0x7fffffff, false));
 }
 
 TEST_F(SurfaceTest, ConcreteTypeIsSurface) {
