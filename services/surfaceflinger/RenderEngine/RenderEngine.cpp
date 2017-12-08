@@ -26,7 +26,7 @@
 #include <vector>
 #include <SurfaceFlinger.h>
 
-extern "C" EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 // ---------------------------------------------------------------------------
 namespace android {

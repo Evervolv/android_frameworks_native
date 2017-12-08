@@ -94,7 +94,7 @@
  */
 #define DEBUG_SCREENSHOTS   false
 
-extern "C" EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 namespace android {
 // ---------------------------------------------------------------------------

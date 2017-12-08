@@ -1456,7 +1456,7 @@ const char* eglQueryString(EGLDisplay dpy, EGLint name)
     return setError(EGL_BAD_PARAMETER, (const char *)0);
 }
 
-extern "C" EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name)
+EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name)
 {
     clearError();
 
