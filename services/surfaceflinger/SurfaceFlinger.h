@@ -893,6 +893,8 @@ private:
             std::vector<std::pair<Layer*, sp<LayerFE>>>& layers,
             std::vector<sp<LayerFE>>& layerFEs);
 
+    bool canAllocateHwcDisplayIdForVDS(uint64_t usage);
+
     void readPersistentProperties();
 
     uint32_t getMaxAcquiredBufferCountForCurrentRefreshRate(uid_t uid) const;
@@ -1078,7 +1080,8 @@ private:
     void enableHalVirtualDisplays(bool);
 
     // Virtual display lifecycle for ID generation and HAL allocation.
-    VirtualDisplayId acquireVirtualDisplay(ui::Size, ui::PixelFormat) REQUIRES(mStateLock);
+    VirtualDisplayId acquireVirtualDisplay(ui::Size, ui::PixelFormat,
+                                           bool canAllocateHwcForVDS) REQUIRES(mStateLock);
     void releaseVirtualDisplay(VirtualDisplayId);
 
     // Returns a display other than `mActiveDisplayId` that can be activated, if any.
@@ -1405,6 +1408,9 @@ private:
             bool childrenOnly, const std::optional<FloatRect>& optionalParentCrop);
 
     const sp<WindowInfosListenerInvoker> mWindowInfosListenerInvoker;
+
+    bool mAllowHwcForVDS = false;
+    bool mAllowHwcForWFD = false;
 
     // returns the framerate of the layer with the given sequence ID
     float getLayerFramerate(nsecs_t now, int32_t id) const {
