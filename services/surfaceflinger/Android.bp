@@ -47,6 +47,7 @@ cc_defaults {
         "libtimestats_deps",
         "libsurfaceflinger_common_deps",
         "surfaceflinger_defaults",
+        "surfaceflinger_qcom_ext_defaults",
     ],
     cflags: [
         "-DLOG_TAG=\"SurfaceFlinger\"",
