@@ -26,6 +26,7 @@ cc_defaults {
     name: "libsurfaceflinger_defaults",
     defaults: [
         "android.hardware.graphics.composer3-ndk_shared",
+        "disable_postrender_cleanup_defaults",
         "librenderengine_deps",
         "surfaceflinger_defaults",
         "surfaceflinger_qcom_ext_defaults",
