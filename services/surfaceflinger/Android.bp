@@ -38,6 +38,7 @@ cc_defaults {
     defaults: [
         "android.hardware.graphics.composer3-ndk_shared",
         "android.hardware.power-ndk_shared",
+        "disable_postrender_cleanup_defaults",
         "librenderengine_deps",
         "libtimestats_deps",
         "surfaceflinger_defaults",
