@@ -17,6 +17,7 @@
 #define ATRACE_TAG ATRACE_TAG_GRAPHICS
 
 #include "BlurFilter.h"
+#include "BlurNoise.h"
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -30,39 +31,48 @@ namespace android {
 namespace renderengine {
 namespace gl {
 
+// This needs to be located in .rodata to get a pointer for the OpenGL API.
+static const GLenum kInvalidateAttachment = GL_COLOR_ATTACHMENT0;
+
 BlurFilter::BlurFilter(GLESRenderEngine& engine)
       : mEngine(engine),
         mCompositionFbo(engine),
         mPingFbo(engine),
         mPongFbo(engine),
+        mDitherFbo(engine),
         mMixProgram(engine),
+        mDitherMixProgram(engine),
         mBlurProgram(engine) {
-    mMixProgram.compile(getVertexShader(), getMixFragShader());
-    mMPosLoc = mMixProgram.getAttributeLocation("aPosition");
-    mMUvLoc = mMixProgram.getAttributeLocation("aUV");
-    mMTextureLoc = mMixProgram.getUniformLocation("uTexture");
+    mMixProgram.compile(getMixVertShader(), getMixFragShader());
+    mMBlurTextureLoc = mMixProgram.getUniformLocation("uBlurTexture");
     mMCompositionTextureLoc = mMixProgram.getUniformLocation("uCompositionTexture");
-    mMMixLoc = mMixProgram.getUniformLocation("uMix");
+    mMBlurOpacityLoc = mMixProgram.getUniformLocation("uBlurOpacity");
 
-    mBlurProgram.compile(getVertexShader(), getFragmentShader());
-    mBPosLoc = mBlurProgram.getAttributeLocation("aPosition");
-    mBUvLoc = mBlurProgram.getAttributeLocation("aUV");
+    mDitherMixProgram.compile(getDitherMixVertShader(), getDitherMixFragShader());
+    mDNoiseUvScaleLoc = mDitherMixProgram.getUniformLocation("uNoiseUVScale");
+    mDBlurTextureLoc = mDitherMixProgram.getUniformLocation("uBlurTexture");
+    mDDitherTextureLoc = mDitherMixProgram.getUniformLocation("uDitherTexture");
+    mDCompositionTextureLoc = mDitherMixProgram.getUniformLocation("uCompositionTexture");
+    mDBlurOpacityLoc = mDitherMixProgram.getUniformLocation("uBlurOpacity");
+    mDitherFbo.allocateBuffers(64, 64, (void *) kNoiseData,
+                               GL_NEAREST, GL_REPEAT,
+                               GL_RGB8, GL_RGB, GL_UNSIGNED_BYTE);
+
+    mBlurProgram.compile(getBlurVertShader(), getBlurFragShader());
     mBTextureLoc = mBlurProgram.getUniformLocation("uTexture");
     mBOffsetLoc = mBlurProgram.getUniformLocation("uOffset");
 
-    static constexpr auto size = 2.0f;
-    static constexpr auto translation = 1.0f;
-    const GLfloat vboData[] = {
-        // Vertex data
-        translation - size, -translation - size,
-        translation - size, -translation + size,
-        translation + size, -translation + size,
-        // UV data
-        0.0f, 0.0f - translation,
-        0.0f, size - translation,
-        size, size - translation
-    };
-    mMeshBuffer.allocateBuffers(vboData, 12 /* size */);
+    // Initialize constant shader uniforms
+    mMixProgram.useProgram();
+    glUniform1i(mMBlurTextureLoc, 0);
+    glUniform1i(mMCompositionTextureLoc, 1);
+    mDitherMixProgram.useProgram();
+    glUniform1i(mDBlurTextureLoc, 0);
+    glUniform1i(mDCompositionTextureLoc, 1);
+    glUniform1i(mDDitherTextureLoc, 2);
+    mBlurProgram.useProgram();
+    glUniform1i(mBTextureLoc, 0);
+    glUseProgram(0);
 }
 
 status_t BlurFilter::setAsDrawTarget(const DisplaySettings& display, uint32_t radius) {
@@ -81,8 +91,13 @@ status_t BlurFilter::setAsDrawTarget(const DisplaySettings& display, uint32_t ra
 
         const uint32_t fboWidth = floorf(mDisplayWidth * kFboScale);
         const uint32_t fboHeight = floorf(mDisplayHeight * kFboScale);
-        mPingFbo.allocateBuffers(fboWidth, fboHeight);
-        mPongFbo.allocateBuffers(fboWidth, fboHeight);
+        mPingFbo.allocateBuffers(fboWidth, fboHeight, nullptr,
+                                 GL_LINEAR, GL_CLAMP_TO_EDGE,
+                                 // 2-10-10-10 reversed is the only 10-bpc format in GLES 3.1
+                                 GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV);
+        mPongFbo.allocateBuffers(fboWidth, fboHeight, nullptr,
+                                 GL_LINEAR, GL_CLAMP_TO_EDGE,
+                                 GL_RGB10_A2, GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV);
 
         if (mPingFbo.getStatus() != GL_FRAMEBUFFER_COMPLETE) {
             ALOGE("Invalid ping buffer");
@@ -100,24 +115,22 @@ status_t BlurFilter::setAsDrawTarget(const DisplaySettings& display, uint32_t ra
             ALOGE("Invalid shader");
             return GL_INVALID_OPERATION;
         }
+
+        // Set scale for noise texture UV
+        mDitherMixProgram.useProgram();
+        glUniform2f(mDNoiseUvScaleLoc,
+                    1.0 / kNoiseSize * mDisplayWidth,
+                    1.0 / kNoiseSize * mDisplayHeight);
+        glUseProgram(0);
     }
 
     mCompositionFbo.bind();
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &kInvalidateAttachment);
     glViewport(0, 0, mCompositionFbo.getBufferWidth(), mCompositionFbo.getBufferHeight());
     return NO_ERROR;
 }
 
-void BlurFilter::drawMesh(GLuint uv, GLuint position) {
-
-    glEnableVertexAttribArray(uv);
-    glEnableVertexAttribArray(position);
-    mMeshBuffer.bind();
-    glVertexAttribPointer(position, 2 /* size */, GL_FLOAT, GL_FALSE,
-                          2 * sizeof(GLfloat) /* stride */, 0 /* offset */);
-    glVertexAttribPointer(uv, 2 /* size */, GL_FLOAT, GL_FALSE, 0 /* stride */,
-                          (GLvoid*)(6 * sizeof(GLfloat)) /* offset */);
-    mMeshBuffer.unbind();
-
+void BlurFilter::drawMesh() {
     // draw mesh
     glDrawArrays(GL_TRIANGLES, 0 /* first */, 3 /* count */);
 }
@@ -138,19 +151,23 @@ status_t BlurFilter::prepare() {
     const float stepX = radiusByPasses / (float)mCompositionFbo.getBufferWidth();
     const float stepY = radiusByPasses / (float)mCompositionFbo.getBufferHeight();
 
-    // Let's start by downsampling and blurring the composited frame simultaneously.
-    mBlurProgram.useProgram();
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(mBTextureLoc, 0);
-    glBindTexture(GL_TEXTURE_2D, mCompositionFbo.getTextureName());
-    glUniform2f(mBOffsetLoc, stepX, stepY);
-    glViewport(0, 0, mPingFbo.getBufferWidth(), mPingFbo.getBufferHeight());
-    mPingFbo.bind();
-    drawMesh(mBUvLoc, mBPosLoc);
+    // This initial downscaling blit makes the first pass correct and improves performance.
+    GLFramebuffer* read = &mCompositionFbo;
+    GLFramebuffer* draw = &mPingFbo;
+    read->bindAsReadBuffer();
+    draw->bindAsDrawBuffer();
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &kInvalidateAttachment);
+    glBlitFramebuffer(0, 0,
+                      read->getBufferWidth(), read->getBufferHeight(),
+                      0, 0,
+                      draw->getBufferWidth(), draw->getBufferHeight(),
+                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    read = &mPingFbo;
+    draw = &mPongFbo;
 
     // And now we'll ping pong between our textures, to accumulate the result of various offsets.
-    GLFramebuffer* read = &mPingFbo;
-    GLFramebuffer* draw = &mPongFbo;
+    mBlurProgram.useProgram();
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &kInvalidateAttachment);
     glViewport(0, 0, draw->getBufferWidth(), draw->getBufferHeight());
     for (auto i = 1; i < passes; i++) {
         ATRACE_NAME("BlurFilter::renderPass");
@@ -159,46 +176,47 @@ status_t BlurFilter::prepare() {
         glBindTexture(GL_TEXTURE_2D, read->getTextureName());
         glUniform2f(mBOffsetLoc, stepX * i, stepY * i);
 
-        drawMesh(mBUvLoc, mBPosLoc);
+        drawMesh();
 
         // Swap buffers for next iteration
-        auto tmp = draw;
-        draw = read;
-        read = tmp;
+        std::swap(read, draw);
     }
     mLastDrawTarget = read;
 
     return NO_ERROR;
 }
 
-status_t BlurFilter::render(bool multiPass) {
+status_t BlurFilter::render(size_t layers, int currentLayer) {
     ATRACE_NAME("BlurFilter::render");
 
     // Now let's scale our blur up. It will be interpolated with the larger composited
     // texture for the first frames, to hide downscaling artifacts.
-    GLfloat mix = fmin(1.0, mRadius / kMaxCrossFadeRadius);
+    GLfloat opacity = fmin(1.0, mRadius / kMaxCrossFadeRadius);
 
     // When doing multiple passes, we cannot try to read mCompositionFbo, given that we'll
     // be writing onto it. Let's disable the crossfade, otherwise we'd need 1 extra frame buffer,
     // as large as the screen size.
-    if (mix >= 1 || multiPass) {
-        mLastDrawTarget->bindAsReadBuffer();
-        glBlitFramebuffer(0, 0, mLastDrawTarget->getBufferWidth(),
-                          mLastDrawTarget->getBufferHeight(), mDisplayX, mDisplayY, mDisplayWidth,
-                          mDisplayHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-        return NO_ERROR;
+    if (opacity >= 1 || layers > 1) {
+        opacity = 1.0f;
     }
 
-    mMixProgram.useProgram();
-    glUniform1f(mMMixLoc, mix);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mLastDrawTarget->getTextureName());
-    glUniform1i(mMTextureLoc, 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, mCompositionFbo.getTextureName());
-    glUniform1i(mMCompositionTextureLoc, 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, mDitherFbo.getTextureName());
 
-    drawMesh(mMUvLoc, mMPosLoc);
+    // Dither the last layer
+    if (currentLayer == layers - 1) {
+        mDitherMixProgram.useProgram();
+        glUniform1f(mDBlurOpacityLoc, opacity);
+        drawMesh();
+    } else {
+        mMixProgram.useProgram();
+        glUniform1f(mMBlurOpacityLoc, opacity);
+        drawMesh();
+    }
 
     glUseProgram(0);
     glActiveTexture(GL_TEXTURE0);
@@ -206,39 +224,58 @@ status_t BlurFilter::render(bool multiPass) {
     return NO_ERROR;
 }
 
-string BlurFilter::getVertexShader() const {
+string BlurFilter::getBlurVertShader() const {
     return R"SHADER(#version 310 es
         precision mediump float;
 
-        in vec2 aPosition;
-        in highp vec2 aUV;
-        out highp vec2 vUV;
+        uniform vec2 uOffset;
+
+        out vec2 vUV;
+        out vec2 vBlurTaps[4];
 
         void main() {
-            vUV = aUV;
-            gl_Position = vec4(aPosition, 0.0, 1.0);
+            vUV = vec2((gl_VertexID == 2) ? 2.0 : 0.0, (gl_VertexID == 1) ? 2.0 : 0.0);
+            gl_Position = vec4(vUV * 2.0 - 1.0, 1.0, 1.0);
+
+            vBlurTaps[0] = vUV + vec2( uOffset.x,  uOffset.y);
+            vBlurTaps[1] = vUV + vec2( uOffset.x, -uOffset.y);
+            vBlurTaps[2] = vUV + vec2(-uOffset.x,  uOffset.y);
+            vBlurTaps[3] = vUV + vec2(-uOffset.x, -uOffset.y);
         }
     )SHADER";
 }
 
-string BlurFilter::getFragmentShader() const {
+string BlurFilter::getBlurFragShader() const {
     return R"SHADER(#version 310 es
         precision mediump float;
 
         uniform sampler2D uTexture;
-        uniform vec2 uOffset;
 
-        in highp vec2 vUV;
+        in vec2 vUV;
+        in vec2 vBlurTaps[4];
         out vec4 fragColor;
 
         void main() {
-            fragColor  = texture(uTexture, vUV, 0.0);
-            fragColor += texture(uTexture, vUV + vec2( uOffset.x,  uOffset.y), 0.0);
-            fragColor += texture(uTexture, vUV + vec2( uOffset.x, -uOffset.y), 0.0);
-            fragColor += texture(uTexture, vUV + vec2(-uOffset.x,  uOffset.y), 0.0);
-            fragColor += texture(uTexture, vUV + vec2(-uOffset.x, -uOffset.y), 0.0);
+            vec3 sum = texture(uTexture, vUV).rgb;
+            sum += texture(uTexture, vBlurTaps[0]).rgb;
+            sum += texture(uTexture, vBlurTaps[1]).rgb;
+            sum += texture(uTexture, vBlurTaps[2]).rgb;
+            sum += texture(uTexture, vBlurTaps[3]).rgb;
 
-            fragColor = vec4(fragColor.rgb * 0.2, 1.0);
+            fragColor = vec4(sum * 0.2, 1.0);
+        }
+    )SHADER";
+}
+
+string BlurFilter::getMixVertShader() const {
+    return R"SHADER(#version 310 es
+        precision mediump float;
+
+        out vec2 vUV;
+
+        void main() {
+            vUV = vec2((gl_VertexID == 2) ? 2.0 : 0.0, (gl_VertexID == 1) ? 2.0 : 0.0);
+            gl_Position = vec4(vUV * 2.0 - 1.0, 1.0, 1.0);
         }
     )SHADER";
 }
@@ -247,20 +284,79 @@ string BlurFilter::getMixFragShader() const {
     string shader = R"SHADER(#version 310 es
         precision mediump float;
 
-        in highp vec2 vUV;
+        in vec2 vUV;
         out vec4 fragColor;
 
         uniform sampler2D uCompositionTexture;
-        uniform sampler2D uTexture;
-        uniform float uMix;
+        uniform sampler2D uBlurTexture;
+        uniform float uBlurOpacity;
 
         void main() {
-            vec4 blurred = texture(uTexture, vUV);
-            vec4 composition = texture(uCompositionTexture, vUV);
-            fragColor = mix(composition, blurred, uMix);
+            vec3 blurred = texture(uBlurTexture, vUV).rgb;
+            vec3 composition = texture(uCompositionTexture, vUV).rgb;
+            fragColor = vec4(mix(composition, blurred, uBlurOpacity), 1.0);
         }
     )SHADER";
     return shader;
+}
+
+string BlurFilter::getDitherMixVertShader() const {
+    return R"SHADER(#version 310 es
+        precision mediump float;
+
+        uniform vec2 uNoiseUVScale;
+
+        out vec2 vUV;
+        out vec2 vNoiseUV;
+
+        void main() {
+            vUV = vec2((gl_VertexID == 2) ? 2.0 : 0.0, (gl_VertexID == 1) ? 2.0 : 0.0);
+            gl_Position = vec4(vUV * 2.0 - 1.0, 1.0, 1.0);
+
+            vNoiseUV = vUV * uNoiseUVScale;
+        }
+    )SHADER";
+}
+
+string BlurFilter::getDitherMixFragShader() const {
+    return R"SHADER(#version 310 es
+        precision mediump float;
+
+        in vec2 vUV;
+        in vec2 vNoiseUV;
+        out vec4 fragColor;
+
+        uniform sampler2D uCompositionTexture;
+        uniform sampler2D uBlurTexture;
+        uniform sampler2D uDitherTexture;
+        uniform float uBlurOpacity;
+
+        // Fast implementation of sign(vec3)
+        // Using overflow trick from https://twitter.com/SebAaltonen/status/878250919879639040
+        #define FLT_MAX 3.402823466e+38
+        vec3 fastSign(vec3 x) {
+            return clamp(x * FLT_MAX + 0.5, 0.0, 1.0) * 2.0 - 1.0;
+        }
+
+        // Fast gamma 2 approximation of sRGB
+        vec3 srgbToLinear(vec3 srgb) {
+            return srgb * srgb;
+        }
+
+        vec3 linearToSrgb(vec3 linear) {
+            return sqrt(linear);
+        }
+
+        void main() {
+            // Remap uniform blue noise to triangular PDF distribution
+            vec3 dither = texture(uDitherTexture, vNoiseUV).rgb * 2.0 - 1.0;
+            dither = fastSign(dither) * (1.0 - sqrt(1.0 - abs(dither))) / 64.0;
+
+            vec3 blurred = srgbToLinear(linearToSrgb(texture(uBlurTexture, vUV).rgb) + dither);
+            vec3 composition = texture(uCompositionTexture, vUV).rgb;
+            fragColor = vec4(mix(composition, blurred, uBlurOpacity), 1.0);
+        }
+    )SHADER";
 }
 
 } // namespace gl
