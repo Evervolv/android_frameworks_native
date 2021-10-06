@@ -27,6 +27,7 @@ using namespace android::hardware::power;
 namespace V1_0 = android::hardware::power::V1_0;
 namespace V1_1 = android::hardware::power::V1_1;
 namespace Aidl = android::hardware::power;
+namespace EvervolvAidl = vendor::evervolv::power;
 
 namespace android {
 
@@ -104,6 +105,11 @@ HalResult<int64_t> EmptyHalWrapper::getHintSessionPreferredRate() {
     return HalResult<int64_t>::unsupported();
 }
 
+HalResult<int> EmptyHalWrapper::getFeature(EvervolvAidl::Feature) {
+    ALOGV("Skipped getFeature because Power HAL not available");
+    return HalResult<int>::unsupported();
+}
+
 // -------------------------------------------------------------------------------------------------
 
 HalResult<void> HidlHalWrapperV1_0::setBoost(Boost boost, int32_t durationMs) {
@@ -162,6 +168,11 @@ HalResult<sp<Aidl::IPowerHintSession>> HidlHalWrapperV1_0::createHintSession(
 HalResult<int64_t> HidlHalWrapperV1_0::getHintSessionPreferredRate() {
     ALOGV("Skipped getHintSessionPreferredRate because Power HAL not available");
     return HalResult<int64_t>::unsupported();
+}
+
+HalResult<int> HidlHalWrapperV1_0::getFeature(EvervolvAidl::Feature) {
+    ALOGV("Skipped getFeature because Power HAL not available");
+    return HalResult<int>::unsupported();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -246,6 +257,43 @@ HalResult<int64_t> AidlHalWrapper::getHintSessionPreferredRate() {
     int64_t rate = -1;
     auto result = mHandle->getHintSessionPreferredRate(&rate);
     return HalResult<int64_t>::fromStatus(result, rate);
+}
+
+HalResult<int> AidlHalWrapper::getFeature(EvervolvAidl::Feature) {
+    ALOGV("Skipped getFeature because Power HAL not available");
+    return HalResult<int>::unsupported();
+}
+
+// -------------------------------------------------------------------------------------------------
+
+HalResult<void> EvervolvAidlHalWrapper::setBoost(Boost boost, int32_t durationMs) {
+    ALOGV("Skipped setBoost %s with duration %dms because Power HAL not available",
+          toString(boost).c_str(), durationMs);
+    return HalResult<void>::unsupported();
+}
+
+HalResult<void> EvervolvAidlHalWrapper::setMode(Mode mode, bool enabled) {
+    ALOGV("Skipped setMode %s to %s because Power HAL not available", toString(mode).c_str(),
+          enabled ? "true" : "false");
+    return HalResult<void>::unsupported();
+}
+
+HalResult<sp<Aidl::IPowerHintSession>> EvervolvAidlHalWrapper::createHintSession(
+        int32_t, int32_t, const std::vector<int32_t>& threadIds, int64_t) {
+    ALOGV("Skipped createHintSession(task num=%zu) because Power HAL not available",
+          threadIds.size());
+    return HalResult<sp<Aidl::IPowerHintSession>>::unsupported();
+}
+
+HalResult<int64_t> EvervolvAidlHalWrapper::getHintSessionPreferredRate() {
+    ALOGV("Skipped getHintSessionPreferredRate because Power HAL not available");
+    return HalResult<int64_t>::unsupported();
+}
+
+HalResult<int> EvervolvAidlHalWrapper::getFeature(EvervolvAidl::Feature feature) {
+    int value = -1;
+    auto ret = mHandle->getFeature(feature, &value);
+    return HalResult<int>::fromStatus(ret, value);
 }
 
 // -------------------------------------------------------------------------------------------------
