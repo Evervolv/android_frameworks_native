@@ -25,6 +25,7 @@
 #include <utils/Log.h>
 
 using namespace android::hardware::power;
+namespace EvervolvAidl = vendor::evervolv::power;
 
 namespace android {
 
@@ -48,8 +49,14 @@ std::unique_ptr<HalWrapper> HalConnector::connect() {
     return nullptr;
 }
 
+std::unique_ptr<HalWrapper> HalConnector::connectEvervolv() {
+    sp<EvervolvAidl::IPower> halEvervolvAidl = PowerHalLoader::loadEvervolvAidl();
+    return std::make_unique<EvervolvAidlHalWrapper>(halEvervolvAidl);
+}
+
 void HalConnector::reset() {
     PowerHalLoader::unloadAll();
+    PowerHalLoader::unloadEvervolv();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -70,6 +77,20 @@ std::shared_ptr<HalWrapper> PowerHalController::initHal() {
         }
     }
     return mConnectedHal;
+}
+
+// Check validity of current handle to the Evervolv power HAL service, and create a new
+// one if necessary.
+std::shared_ptr<HalWrapper> PowerHalController::initEvervolvHal() {
+    std::lock_guard<std::mutex> lock(mConnectedEvervolvHalMutex);
+    if (mConnectedEvervolvHal == nullptr) {
+        mConnectedEvervolvHal = mHalConnector->connect();
+        if (mConnectedEvervolvHal == nullptr) {
+            // Unable to connect to Evervolv Power HAL service. Fallback to default.
+            return mDefaultHal;
+        }
+    }
+    return mConnectedEvervolvHal;
 }
 
 // Check if a call to Power HAL function failed; if so, log the failure and
@@ -109,6 +130,12 @@ HalResult<int64_t> PowerHalController::getHintSessionPreferredRate() {
     std::shared_ptr<HalWrapper> handle = initHal();
     auto result = handle->getHintSessionPreferredRate();
     return processHalResult(result, "getHintSessionPreferredRate");
+}
+
+HalResult<int> PowerHalController::getFeature(EvervolvAidl::Feature feature) {
+    std::shared_ptr<HalWrapper> handle = initEvervolvHal();
+    auto result = handle->getFeature(feature);
+    return processHalResult(result, "getFeature");
 }
 
 } // namespace power

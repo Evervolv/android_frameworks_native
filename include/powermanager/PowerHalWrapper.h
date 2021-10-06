@@ -23,6 +23,7 @@
 #include <android/hardware/power/IPower.h>
 #include <android/hardware/power/IPowerHintSession.h>
 #include <android/hardware/power/Mode.h>
+#include <vendor/evervolv/power/IPower.h>
 
 namespace android {
 
@@ -123,6 +124,7 @@ public:
             int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds,
             int64_t durationNanos) = 0;
     virtual HalResult<int64_t> getHintSessionPreferredRate() = 0;
+    virtual HalResult<int> getFeature(vendor::evervolv::power::Feature feature) = 0;
 };
 
 // Empty Power HAL wrapper that ignores all api calls.
@@ -137,6 +139,7 @@ public:
             int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds,
             int64_t durationNanos) override;
     virtual HalResult<int64_t> getHintSessionPreferredRate() override;
+    virtual HalResult<int> getFeature(vendor::evervolv::power::Feature feature) override;
 };
 
 // Wrapper for the HIDL Power HAL v1.0.
@@ -152,6 +155,7 @@ public:
             int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds,
             int64_t durationNanos) override;
     virtual HalResult<int64_t> getHintSessionPreferredRate() override;
+    virtual HalResult<int> getFeature(vendor::evervolv::power::Feature feature) override;
 
 protected:
     virtual HalResult<void> sendPowerHint(hardware::power::V1_0::PowerHint hintId, uint32_t data);
@@ -190,6 +194,7 @@ public:
             int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds,
             int64_t durationNanos) override;
     virtual HalResult<int64_t> getHintSessionPreferredRate() override;
+    virtual HalResult<int> getFeature(vendor::evervolv::power::Feature feature) override;
 
 private:
     // Control access to the boost and mode supported arrays.
@@ -207,6 +212,25 @@ private:
                static_cast<int32_t>(hardware::power::Mode::DISPLAY_INACTIVE) + 1>
             mModeSupportedArray GUARDED_BY(mModeMutex) = {HalSupport::UNKNOWN};
 };
+
+// Wrapper for the Evervolv AIDL Power HAL.
+class EvervolvAidlHalWrapper : public HalWrapper {
+public:
+    explicit EvervolvAidlHalWrapper(sp<vendor::evervolv::power::IPower> handle) : mHandle(std::move(handle)) {}
+    ~EvervolvAidlHalWrapper() = default;
+
+    virtual HalResult<void> setBoost(hardware::power::Boost boost, int32_t durationMs) override;
+    virtual HalResult<void> setMode(hardware::power::Mode mode, bool enabled) override;
+    virtual HalResult<sp<hardware::power::IPowerHintSession>> createHintSession(
+            int32_t tgid, int32_t uid, const std::vector<int32_t>& threadIds,
+            int64_t durationNanos) override;
+    virtual HalResult<int64_t> getHintSessionPreferredRate() override;
+    virtual HalResult<int> getFeature(vendor::evervolv::power::Feature feature) override;
+
+private:
+    sp<vendor::evervolv::power::IPower> mHandle;
+};
+
 
 }; // namespace power
 
