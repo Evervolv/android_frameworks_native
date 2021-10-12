@@ -278,13 +278,9 @@ cc_defaults {
     ],
 }
 
-cc_library_shared {
-    name: "libgui",
-    vendor_available: true,
-    vndk: {
-        enabled: true,
-        private: true,
-    },
+cc_defaults {
+    name: "libgui_defaults",
+
     double_loadable: true,
 
     defaults: [
@@ -325,6 +321,22 @@ cc_library_shared {
     cflags: [
         "-Wthread-safety",
     ],
+}
+
+cc_library_shared {
+    name: "libgui",
+    vendor_available: true,
+    vndk: {
+        enabled: true,
+        private: true,
+    },
+    defaults: ["libgui_defaults"]
+}
+
+cc_library_shared {
+    name: "libgui_vendor",
+    vendor: true,
+    defaults: ["libgui_defaults"]
 }
 
 // Used by media codec services exclusively as a static lib for
