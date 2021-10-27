@@ -110,7 +110,10 @@ cc_library_shared {
     cflags: [
         "-Wall",
         "-Werror",
-    ],
+    ] + select(soong_config_variable("libui", "additional_gralloc_10_usage_bits"), {
+        any @ flag_val: ["-DADDNL_GRALLOC_10_USAGE_BITS=" + flag_val],
+        default: ["-DADDNL_GRALLOC_10_USAGE_BITS=0"],
+    }),
     cppflags: [
         "-Wextra",
     ],
