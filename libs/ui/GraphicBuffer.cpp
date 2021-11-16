@@ -125,7 +125,9 @@ void GraphicBuffer::free_handle()
         GraphicBufferAllocator& allocator(GraphicBufferAllocator::get());
         allocator.free(handle);
     }
+#ifndef DISABLE_POSTRENDER_CLEANUP
     handle = nullptr;
+#endif
 }
 
 status_t GraphicBuffer::initCheck() const {
